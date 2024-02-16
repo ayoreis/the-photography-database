@@ -1,0 +1,11 @@
+{
+	"fmt": {
+		"proseWrap": "preserve",
+		"singleQuote": true,
+		"useTabs": true
+	},
+
+	"tasks": {
+		"dev": "deno run --allow-net=0.0.0.0 --allow-read=index.html --watch=index.html mod.ts"
+	}
+}
