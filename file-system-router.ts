@@ -1,4 +1,10 @@
-import { Router } from './router.ts';
+import { Handler, Router } from './router.ts';
+
+const TYPESCRIPT_EXTENSION = '.ts';
+
+export function define(handler: Handler) {
+	return handler;
+}
 
 export class FileSystemRouter extends Router {
 	#directory: string;
@@ -16,11 +22,23 @@ export class FileSystemRouter extends Router {
 				continue;
 			}
 
-			const name = entry.name.slice(0, entry.name.lastIndexOf('.'));
+			const extension_separator_position = entry.name.lastIndexOf('.');
+			const name = entry.name.slice(0, extension_separator_position);
+			const extension = entry.name.slice(extension_separator_position);
 			const pattern = name === 'index' ? parent : `${parent}/${name}`;
-			const content = await Deno.readTextFile(
-				`${this.#directory}/${parent}/${entry.name}`,
-			);
+			const real_name = `./${this.#directory}${parent}/${entry.name}`;
+
+			if (extension === TYPESCRIPT_EXTENSION) {
+				this.get(pattern, async (request, groups) => {
+					const handle: Handler = (await import(real_name)).default;
+
+					return await handle(request, groups);
+				});
+
+				continue;
+			}
+
+			const content = await Deno.readTextFile(real_name);
 
 			this.get(pattern, () => {
 				return new Response(content, {

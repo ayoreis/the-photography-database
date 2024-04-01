@@ -37,9 +37,13 @@
 
 	<body>
 		<main>
+			<h1>The Photography Database <small>(as served by the file-system router)</small></h1>
+			<label>Search: <input type="text" /></label>
+
+			<hr>
+
 			<slot>
-				<h1>The Photography Database <small>(as served by the file-system router)</small></h1>
-				<label>Search: <input type="text" /></label>
+				<a href="/cameras">Camera List</a>
 			</slot>
 		</main>
 
