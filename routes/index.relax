@@ -32,13 +32,13 @@
 			}
 		</style>
 
-		<title>The Photography Database <small>(as served by the file-system router)</small></title>
+		<title>The Photography Database</title>
 	</head>
 
 	<body>
 		<main>
 			<slot>
-				<h1>The Photography Database</h1>
+				<h1>The Photography Database <small>(as served by the file-system router)</small></h1>
 				<label>Search: <input type="text" /></label>
 			</slot>
 		</main>
