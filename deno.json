@@ -6,6 +6,6 @@
 	},
 
 	"tasks": {
-		"dev": "deno run --allow-net=0.0.0.0 --allow-read=index.html --watch=index.html mod.ts"
+		"dev": "deno run --allow-net=0.0.0.0 --allow-read=routes/ --watch=routes/ mod.ts"
 	}
 }

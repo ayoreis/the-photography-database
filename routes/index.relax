@@ -32,7 +32,7 @@
 			}
 		</style>
 
-		<title>The Photography Database</title>
+		<title>The Photography Database <small>(as served by the file-system router)</small></title>
 	</head>
 
 	<body>

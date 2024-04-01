@@ -1,5 +1,7 @@
-const html = await Deno.readTextFile('index.html');
+import { FileSystemRouter } from './file-system-router.ts';
 
-Deno.serve(() =>
-	new Response(html, { headers: { 'Content-Type': 'text/html' } })
-);
+const router = new FileSystemRouter('routes');
+
+await router.recurse_directory();
+
+Deno.serve(router.handle);
