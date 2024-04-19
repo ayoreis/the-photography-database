@@ -29,6 +29,7 @@ type Handler<Data> = (
 
 type NotFoundHandler<Data> = (
 	request: Request,
+	groups: Groups,
 	data: Data,
 ) => MaybePromise<Response>;
 
@@ -82,37 +83,8 @@ function is_middleware<Data>(handler: Middleware<Data> | Handler<Data>) {
 	return handler.length > 3;
 }
 
-function compose<Data>(first: Middleware<Data>, second: Middleware<Data>) {
-	return async (
-		request: Request,
-		groups: Groups,
-		data: Data,
-		next: Next<Data>,
-	) => {
-		let response: Response;
-
-		await first(
-			request,
-			groups,
-			data,
-			async (next_data = data) => {
-				await second(
-					request,
-					groups,
-					next_data,
-					async () => response = await next(),
-				);
-
-				return response;
-			},
-		);
-
-		return response!;
-	};
-}
-
-function is_destination(parts: string[]) {
-	return parts.length === 0;
+function is_destination(part?: string) {
+	return part === undefined;
 }
 
 class Route<Data> {
@@ -154,22 +126,22 @@ type EntryKind<Data> =
 function* traverse_tree<Data>(
 	[part, ...parts]: string[],
 	current_route: Route<Data>,
+	groups: Groups = {},
 ): Generator<EntryKind<Data>, void, void> {
-	// TODO
-	if (part === undefined) {
+	if (is_destination(part)) {
 		for (const middleware of current_route.middleware) {
-			yield { type: 'middleware', callback: middleware, groups: {} };
+			yield { type: 'middleware', callback: middleware, groups };
 		}
 
 		if (current_route.handler) {
-			yield { type: 'handler', callback: current_route.handler, groups: {} };
+			yield { type: 'handler', callback: current_route.handler, groups };
 		}
 
 		if (current_route.not_found_handler) {
 			yield {
 				type: 'not_found',
 				callback: current_route.not_found_handler,
-				groups: {},
+				groups,
 			};
 		}
 
@@ -177,19 +149,17 @@ function* traverse_tree<Data>(
 	}
 
 	if (current_route.wildcard_child) {
-		yield* traverse_tree([], current_route.wildcard_child);
+		yield* traverse_tree([], current_route.wildcard_child, { ...groups });
 	}
 
 	for (const [group, child] of current_route.slow_children) {
-		// const groups = { [group]: part };
-
-		// console.log(groups);
-
-		yield* traverse_tree(parts, child);
+		yield* traverse_tree(parts, child, { [group]: part, ...groups });
 	}
 
 	if (current_route.fast_children.has(part)) {
-		yield* traverse_tree(parts, current_route.fast_children.get(part)!);
+		yield* traverse_tree(parts, current_route.fast_children.get(part)!, {
+			...groups,
+		});
 	}
 }
 
@@ -305,34 +275,70 @@ export class Router<
 
 	async handle(request: Request) {
 		const root_route = this.#routes[request.method as Method];
-		// TODO request vs node scoped, currently request
-		const groups: Groups = {};
-		const data = Object.assign({}, this.#default_data);
-
+		const data = { ...this.#default_data };
 		const { pathname } = new URL(request.url);
 
-		let middleware: Middleware<Data> = (request, groups, data, next) =>
-			next(data);
-		let handler: Handler<Data> | undefined;
-		let not_found_handler: NotFoundHandler<Data> = () =>
-			new Response(null, { status: 404 });
+		let middleware: ((next: Next<Data>) => Promise<Response>) | undefined =
+			undefined;
+		let handler: HandlerEntry<Data>;
+		let not_found_handler: NotFoundEntry<Data> = {
+			type: 'not_found',
+			groups: {},
+
+			callback() {
+				return new Response(null, { status: 404 });
+			},
+		};
 
 		for (const entry of traverse_tree(parts(pathname), root_route)) {
-			switch (entry.type) {
+			const { type, callback, groups } = entry;
+
+			switch (type) {
 				case 'middleware': {
-					middleware = compose(middleware, entry.callback);
+					if (middleware) {
+						const old_middleware = middleware;
+
+						middleware = async (next) => {
+							let response: Response;
+
+							await old_middleware!(async () => {
+								await callback(
+									request,
+									groups,
+									data,
+									async (data) => response = await next(data),
+								);
+
+								return response;
+							});
+
+							return response!;
+						};
+					} else {
+						middleware = async (next) => {
+							let response: Response;
+
+							await callback(
+								request,
+								groups,
+								data,
+								async (data) => response = await next(data),
+							);
+
+							return response!;
+						};
+					}
 
 					break;
 				}
 
 				case 'handler': {
-					handler = entry.callback;
-
+					handler = entry;
 					break;
 				}
 
 				case 'not_found': {
-					not_found_handler = entry.callback;
+					not_found_handler = entry;
 					break;
 				}
 
@@ -341,19 +347,24 @@ export class Router<
 			}
 		}
 
-		return await middleware(
-			request,
-			{},
-			this.#default_data,
-			async (next_data) => {
-				const new_data = next_data ? Object.assign(data, next_data) : data;
+		async function next(next_data?: Data) {
+			const new_data = next_data ? Object.assign(data, next_data) : data;
 
-				if (handler) {
-					return await handler(request, {}, new_data);
-				}
+			if (handler) {
+				return await handler.callback(request, handler.groups, new_data);
+			}
 
-				return await not_found_handler(request, new_data);
-			},
-		);
+			return await not_found_handler.callback(
+				request,
+				not_found_handler.groups,
+				new_data,
+			);
+		}
+
+		if (middleware) {
+			return await middleware(next);
+		}
+
+		return await next(data);
 	}
 }

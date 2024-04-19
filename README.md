@@ -4,8 +4,8 @@ Work in progress.
 
 ## Todo
 
-- [ ] Destination
+- [ ] Reverse entry order
+- [ ] Destination?
 - [ ] Other parts of URL
-- [ ] Groups
-- [ ] Can middleware return
+- [ ] Can middleware return?
 - [ ] `/*` match self
