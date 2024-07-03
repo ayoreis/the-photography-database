@@ -1,7 +1,0 @@
-<h2>Cameras</h2>
-
-<slot>
-    <ul>
-        <li><a href="/cameras/canon-eos-5d-mark-ii">Canon EOS 5D Mark II</a></li>
-    </ul>
-</slot>

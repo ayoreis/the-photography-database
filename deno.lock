@@ -1,0 +1,14 @@
+{
+  "version": "3",
+  "packages": {
+    "specifiers": {
+      "jsr:@std/http": "jsr:@std/http@0.224.5"
+    },
+    "jsr": {
+      "@std/http@0.224.5": {
+        "integrity": "b03b5d1529f6c423badfb82f6640f9f2557b4034cd7c30655ba5bb447ff750a4"
+      }
+    }
+  },
+  "remote": {}
+}
